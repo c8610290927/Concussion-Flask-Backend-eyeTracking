@@ -45,7 +45,7 @@ def GetResultBySessionid(sessionid):
     query = EyeTrackingFeature.query.filter_by(sessionid=sessionid).first()
     print(query.tracking_dist)
     return Response(json.dumps(query.tracking_dist),  mimetype='application/json')
-
+#RRRRRRRRRRRRRRRRRR
 
 @eyeTracking_routes.route('/receive', methods=['GET', 'POST'])
 def Receive():

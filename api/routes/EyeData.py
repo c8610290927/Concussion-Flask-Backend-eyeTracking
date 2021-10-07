@@ -43,8 +43,8 @@ def GetResultBySessionid(sessionid):
     :return:
     """
     query = EyeTrackingFeature.query.filter_by(sessionid=sessionid).first()
-    print(query)
-    return Response(json.dumps(query),  mimetype='application/json')
+    print(query.tracking_dist)
+    return Response(json.dumps(query.tracking_dist),  mimetype='application/json')
 
 
 @eyeTracking_routes.route('/receive', methods=['GET', 'POST'])

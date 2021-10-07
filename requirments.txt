@@ -1,0 +1,4 @@
+flask
+marshmallow-sqlalchemy
+flask-marshmallow
+python-dotenv

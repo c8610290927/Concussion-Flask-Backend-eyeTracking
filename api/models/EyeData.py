@@ -12,8 +12,10 @@ class EyeTrackingData(db.Model):
     position_z = db.Column(db.Float, nullable=False)
     openness_left = db.Column(db.Float, nullable=False)
     openness_right = db.Column(db.Float, nullable=False)
+    username = db.Column(db.String(100), nullable=False)
+    mode = db.Column(db.String(100), nullable=False)
 
-    def __init__(self, gameid, sessionid, username, time_stamp, position_x, position_y, position_z, openness_left, openness_right):
+    def __init__(self, gameid, sessionid, username, time_stamp, position_x, position_y, position_z, openness_left, openness_right, mode):
         self.gameid = gameid
         self.sessionid = sessionid
         self.username = username
@@ -23,6 +25,7 @@ class EyeTrackingData(db.Model):
         self.position_z = position_z
         self.openness_left = openness_left
         self.openness_right = openness_right
+        self.mode = mode
 
     def create(self):
         db.session.add(self)

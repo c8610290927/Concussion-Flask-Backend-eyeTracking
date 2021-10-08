@@ -23,29 +23,48 @@ def GetImage(sessionid):
 
     return send_from_directory('static', f'{sessionid}'+'.jpg')
 
-@eyeTracking_routes.route("/get/session/<username>", methods=['GET'])
-def GetSessionidByUsername(username):
-    """
-    GetSessionidByUsername, According to username, return a list of sessionid by username
-    :param username:
-    :return:
-    """
-    query = PlayHistory.query.filter_by(username=username)
-    sessionid_list = []
-    for i in query:
-        sessionid_list.append(i.sessionid)
-    return Response(json.dumps(sessionid_list),  mimetype='application/json')
+# @eyeTracking_routes.route("/get/session/<username>", methods=['GET'])
+# def GetSessionidByUsername(username):
+#     """
+#     GetSessionidByUsername, According to username, return a list of sessionid by username
+#     :param username:
+#     :return:
+#     """
+#     query = PlayHistory.query.filter_by(username=username)
+#     sessionid_list = []
+#     for i in query:
+#         sessionid_list.append(i.sessionid)
+#     return Response(json.dumps(sessionid_list),  mimetype='application/json')
 
-@eyeTracking_routes.route("/get/result/<sessionid>")
+@eyeTracking_routes.route("/get/dist/<sessionid>")
 def GetResultBySessionid(sessionid):
-    """
-    :param sessionid:
-    :return:
-    """
     query = EyeTrackingFeature.query.filter_by(sessionid=sessionid).first()
     print(query.tracking_dist)
     return Response(json.dumps(query.tracking_dist),  mimetype='application/json')
-#RRRRRRRRRRRRRRRRRR
+
+@eyeTracking_routes.route("/get/time/<sessionid>")
+def GetResultBySessionid(sessionid):
+    query = EyeTrackingFeature.query.filter_by(sessionid=sessionid).first()
+    print(query.game_time)
+    return Response(json.dumps(query.game_time),  mimetype='application/json')
+
+@eyeTracking_routes.route("/get/speed/<sessionid>")
+def GetResultBySessionid(sessionid):
+    query = EyeTrackingFeature.query.filter_by(sessionid=sessionid).first()
+    print(query.tracking_speed)
+    return Response(json.dumps(query.tracking_speed),  mimetype='application/json')
+
+@eyeTracking_routes.route("/get/wink_left/<sessionid>")
+def GetResultBySessionid(sessionid):
+    query = EyeTrackingFeature.query.filter_by(sessionid=sessionid).first()
+    print(query.wink_left)
+    return Response(json.dumps(query.wink_left),  mimetype='application/json')
+
+@eyeTracking_routes.route("/get/wink_right/<sessionid>")
+def GetResultBySessionid(sessionid):
+    query = EyeTrackingFeature.query.filter_by(sessionid=sessionid).first()
+    print(query.wink_right)
+    return Response(json.dumps(query.wink_right),  mimetype='application/json')
 
 @eyeTracking_routes.route('/receive', methods=['GET', 'POST'])
 def Receive():
@@ -57,10 +76,10 @@ def Receive():
         print("receive結果: ", row_data)
         data = {}
         # try:
-        if row_data['Name'] == "DataSync.Entity.ApplicationStartEntity":
-            print("==================ApplicationStartEntity")
+        # if row_data['Name'] == "DataSync.Entity.ApplicationStartEntity":
+        #     print("==================ApplicationStartEntity")
         # Create Play History
-        elif row_data['Name'] == 'DataSync.Entity.ScopeStartEntity':
+        if row_data['Name'] == 'DataSync.Entity.ScopeStartEntity':
             print("==================建立PlayHistory中")
             data['username'] = row_data['Tags']['_userId']
             data['sessionid'] = row_data['Tags']['_scopeId']
@@ -77,6 +96,7 @@ def Receive():
             data['gameid'] = row_data['Tags']['_projectId']
             data['username'] = row_data['Tags']['_userId']
             data['sessionid'] = row_data['Tags']['_scopeId']
+            data['mode'] = row_data['Tags']['mode']
             tags_data = json.loads(row_data['Tags']['data'])
             data['time_stamp'] = tags_data['timeStamp']
             data['position_x'] = tags_data['positionX']
@@ -136,13 +156,13 @@ def Receive():
             # print( "現在有幾個X點R:", len(X), "======================X: ", X) 
             # print( "現在有幾個Y點R:", len(Y), "======================Y: ", Y)     
 
-            # picture output  
+            #picture output  
             plt.plot(X,Y)
             sesson_id = row_data['Tags']['_scopeId']
             plt.savefig(f'./static/{sesson_id}.jpg')
 
             while(True): #計算眼動總距離與速度
-                print("======================X[count]: ", X[count])
+                #print("======================X[count]: ", X[count])
                 dist = dist + math.sqrt((X[count]-X[count+1])**2+(Y[count]-Y[count+1])**2)
                 if count < len(X)-2:
                     count=count+1
@@ -152,13 +172,14 @@ def Receive():
             feature['gameid'] = row_data['Tags']['_projectId']
             feature['username'] = row_data['Tags']['_userId']
             feature['sessionid'] = row_data['Tags']['_scopeId']
+            feature['mode'] = row_data['Tags']['mode']
             feature['tracking_dist'] = dist
             feature['game_time'] = gameTime
             feature['tracking_speed'] = dist/gameTime
             feature['wink_left'] = winkTimesL
             feature['wink_right'] = winkTimesR
-            eyeTracking_schema = EyeTrackingFeatureSchema()
-            eyeTracking = eyeTracking_schema.load(feature)
+            eyeTrackingFeature_schema = EyeTrackingFeatureSchema()
+            eyeTracking = eyeTrackingFeature_schema.load(feature)
             eyeTracking.create()
                 
         #     return response_with(resp.SUCCESS_201)

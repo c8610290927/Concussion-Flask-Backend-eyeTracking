@@ -11,8 +11,9 @@ class EyeTrackingFeature(db.Model):
     tracking_speed = db.Column(db.Float, nullable=False)
     wink_left = db.Column(db.Float, nullable=False)
     wink_right = db.Column(db.Float, nullable=False)
+    mode = db.Column(db.String(100), nullable=False)
 
-    def __init__(self, gameid, sessionid, username, tracking_dist, game_time, tracking_speed, wink_left, wink_right):
+    def __init__(self, gameid, sessionid, username, tracking_dist, game_time, tracking_speed, wink_left, wink_right, mode):
         self.gameid = gameid
         self.sessionid = sessionid
         self.username = username
@@ -21,6 +22,7 @@ class EyeTrackingFeature(db.Model):
         self.tracking_speed = tracking_speed
         self.wink_left = wink_left
         self.wink_right = wink_right
+        self.mode = mode
 
     def create(self):
         db.session.add(self)

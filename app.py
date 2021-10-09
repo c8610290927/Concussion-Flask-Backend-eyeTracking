@@ -1,5 +1,4 @@
 from io import StringIO
-
 from flask import Flask, request, jsonify, make_response
 from api.utils.database import db
 from flask_sqlalchemy import SQLAlchemy

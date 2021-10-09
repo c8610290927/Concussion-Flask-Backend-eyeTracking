@@ -7,12 +7,15 @@ from api.utils import responses as resp
 from flask import Blueprint, request, send_from_directory, Response
 from sqlalchemy.sql import text
 import matplotlib.pyplot as plt
+import numpy as np
+import pickle
 import math
 import gzip
 import json
 
 eyeTracking_routes = Blueprint("eyeTracking_routes", __name__)
 
+# get the picture of eye-tracking
 @eyeTracking_routes.route("/get/img/<sessionid>", methods=['GET'])
 def GetImage(sessionid):
     """
@@ -36,32 +39,56 @@ def GetImage(sessionid):
 #         sessionid_list.append(i.sessionid)
 #     return Response(json.dumps(sessionid_list),  mimetype='application/json')
 
+#get the result that the chance of getting concussion (saccade)
+@eyeTracking_routes.route("/get/saccade_result/<sessionid>")
+def GetSaccadeResultBySessionid(sessionid):
+    query = EyeTrackingFeature.query.filter_by(sessionid=sessionid).first()
+    SVM_model = pickle.load(open('model/SVM_model', 'rb'))
+    data = np.array([[query.tracking_dist, query.game_time, query.tracking_speed, query.wink_left, query.wink_right]])
+    result = SVM_model.predict(data)
+    result_proba = SVM_model.predict_proba(data)
+    print("result & result_proba: ",result, result_proba)
+    
+    return Response(json.dumps(result_proba[0][1]),  mimetype='application/json')
+
+##get the result that the chance of getting concussion (fixation)
+@eyeTracking_routes.route("/get/fixation_result/<sessionid>")
+def GetFixationResultBySessionid(sessionid):
+    query = EyeTrackingFeature.query.filter_by(sessionid=sessionid).first()
+    SVM_model = pickle.load(open('model/SVM_model_fixation', 'rb'))
+    data = np.array([[query.tracking_dist, query.game_time, query.tracking_speed, query.wink_left, query.wink_right]])
+    result = SVM_model.predict(data)
+    result_proba = SVM_model.predict_proba(data)
+    print("result & result_proba: ",result, result_proba)
+
+    return Response(json.dumps(result_proba[0][1]),  mimetype='application/json')
+
 @eyeTracking_routes.route("/get/dist/<sessionid>")
-def GetResultBySessionid(sessionid):
+def GetDistanceBySessionid(sessionid):
     query = EyeTrackingFeature.query.filter_by(sessionid=sessionid).first()
     print(query.tracking_dist)
     return Response(json.dumps(query.tracking_dist),  mimetype='application/json')
 
 @eyeTracking_routes.route("/get/time/<sessionid>")
-def GetResultBySessionid(sessionid):
+def GetTimeBySessionid(sessionid):
     query = EyeTrackingFeature.query.filter_by(sessionid=sessionid).first()
     print(query.game_time)
     return Response(json.dumps(query.game_time),  mimetype='application/json')
 
 @eyeTracking_routes.route("/get/speed/<sessionid>")
-def GetResultBySessionid(sessionid):
+def GetSpeedBySessionid(sessionid):
     query = EyeTrackingFeature.query.filter_by(sessionid=sessionid).first()
     print(query.tracking_speed)
     return Response(json.dumps(query.tracking_speed),  mimetype='application/json')
 
 @eyeTracking_routes.route("/get/wink_left/<sessionid>")
-def GetResultBySessionid(sessionid):
+def GetWinkLBySessionid(sessionid):
     query = EyeTrackingFeature.query.filter_by(sessionid=sessionid).first()
     print(query.wink_left)
     return Response(json.dumps(query.wink_left),  mimetype='application/json')
 
 @eyeTracking_routes.route("/get/wink_right/<sessionid>")
-def GetResultBySessionid(sessionid):
+def GetWinkRBySessionid(sessionid):
     query = EyeTrackingFeature.query.filter_by(sessionid=sessionid).first()
     print(query.wink_right)
     return Response(json.dumps(query.wink_right),  mimetype='application/json')
@@ -71,6 +98,7 @@ def Receive():
     file = request.data
     aa = gzip.decompress(file).decode() 
     tt = aa.split('\n')
+    mode = ""
     for i in tt:
         row_data = json.loads(i)
         print("receive結果: ", row_data)
@@ -87,7 +115,6 @@ def Receive():
             play_history_schema = PlayHistorySchema()
             play_history = play_history_schema.load(data)
             play_history.create()
-            playHistoryStore = False
             print("==========================PlayHistory成功建立==========================")    
 
         # Store EyeTracking Data
@@ -96,8 +123,8 @@ def Receive():
             data['gameid'] = row_data['Tags']['_projectId']
             data['username'] = row_data['Tags']['_userId']
             data['sessionid'] = row_data['Tags']['_scopeId']
-            data['mode'] = row_data['Tags']['mode']
             tags_data = json.loads(row_data['Tags']['data'])
+            data['mode'] = tags_data['mode']
             data['time_stamp'] = tags_data['timeStamp']
             data['position_x'] = tags_data['positionX']
             data['position_y'] = tags_data['positionY']
@@ -107,7 +134,7 @@ def Receive():
             eyeTracking_schema = EyeTrackingDataSchema()
             eyeTracking = eyeTracking_schema.load(data)
             eyeTracking.create()
-            print("========= position X: ", data['position_x'])
+            mode = tags_data['mode']
 
         # End Play History
         elif row_data['Name'] == 'DataSync.Entity.ScopeEndEntity':
@@ -128,10 +155,10 @@ def Receive():
             query = EyeTrackingData.query.filter_by(gameid=row_data['Tags']['_projectId'], sessionid=row_data['Tags']['_scopeId'], username=row_data['Tags']['_userId'])
             for raw_data in query:
                 
-                if(eyePositionGate): #如果遊戲時間間隔大於0.1秒就記錄眼動位置(擔心數據太多 放大10倍比較好畫圖)
+                if(eyePositionGate): #如果遊戲時間間隔大於0.05秒就記錄眼動位置(放大10倍比較好畫圖)
                     if raw_data.position_x *10 != 0.0:
-                        X.append(raw_data.position_x*10)
-                        Y.append(raw_data.position_y*10)
+                        X.append((raw_data.position_x)*10)
+                        Y.append((raw_data.position_y)*10)
                         eyePositionGate = False #眼動位置紀錄完記得把開關關掉
                     #print("==========眼動位置紀錄==========")
                     
@@ -153,18 +180,20 @@ def Receive():
                     winkTimesR = winkTimesR+1
                    # print("==========右眼眨眼啦==========")
             
-            # print( "現在有幾個X點R:", len(X), "======================X: ", X) 
-            # print( "現在有幾個Y點R:", len(Y), "======================Y: ", Y)     
+            print( "現在有幾個X點R:", len(X), "======================X: ", X) 
+            print( "現在有幾個Y點R:", len(Y), "======================Y: ", Y)     
 
             #picture output  
             plt.plot(X,Y)
+            plt.ylabel('Y axis')
+            plt.xlabel('X axis')
             sesson_id = row_data['Tags']['_scopeId']
             plt.savefig(f'./static/{sesson_id}.jpg')
 
             while(True): #計算眼動總距離與速度
-                #print("======================X[count]: ", X[count])
+                print("======================X[count]: ", X[count])
                 dist = dist + math.sqrt((X[count]-X[count+1])**2+(Y[count]-Y[count+1])**2)
-                if count < len(X)-2:
+                if count != len(X)-2:
                     count=count+1
                 else:
                     break
@@ -172,7 +201,7 @@ def Receive():
             feature['gameid'] = row_data['Tags']['_projectId']
             feature['username'] = row_data['Tags']['_userId']
             feature['sessionid'] = row_data['Tags']['_scopeId']
-            feature['mode'] = row_data['Tags']['mode']
+            feature['mode'] = mode
             feature['tracking_dist'] = dist
             feature['game_time'] = gameTime
             feature['tracking_speed'] = dist/gameTime
